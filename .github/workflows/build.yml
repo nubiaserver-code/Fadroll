@@ -1,0 +1,30 @@
+name: Build Fadrol
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: unzip -q Fadrol.zip
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: 17}
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: 8.13}
+      - name: Build APK dan tes
+        working-directory: Fadrol
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest --no-daemon 2>&1 | tee test.log || true
+          gradle assembleDebug --no-daemon 2>&1 | tee build.log || true
+          grep -E "^e: |error:|What went wrong|FAILED|Could not" -A3 build.log test.log | head -200 > galat.txt || true
+          cp app/build/outputs/apk/debug/app-debug.apk Fadrol.apk || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hasil
+          path: |
+            Fadrol/Fadrol.apk
+            Fadrol/galat.txt
+            Fadrol/build.log
+            Fadrol/test.log
